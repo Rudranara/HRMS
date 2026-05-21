@@ -1,0 +1,150 @@
+/* Glassmorphism base */
+body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+.card, .modal-content {
+	background: rgba(255,255,255,0.55);
+	backdrop-filter: blur(10px) saturate(1.1);
+	border: 1px solid rgba(255,255,255,0.45);
+	box-shadow: 0 10px 30px rgba(16,24,40,0.08);
+}
+
+:root{
+	--bg-start: #e9eef8;
+	--bg-end: #f4f7fb;
+	--accent: #0f4b8a; /* navy */
+	--accent-2: #2b6cb0; /* lighter navy */
+	--muted: rgba(15,23,42,0.6);
+	--glass: rgba(255,255,255,0.6);
+}
+
+body.theme-app{
+	background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+	min-height:100vh;
+	color: #0f172a;
+}
+
+.container, .theme-panel { position:relative; }
+
+/* Top accent bar */
+.topbar { height:6px; background: linear-gradient(90deg,var(--accent),var(--accent-2)); border-radius:8px; margin-bottom:12px; }
+
+/* Sidebar */
+.nav .btn { border-radius:12px; background: rgba(255,255,255,0.08); color:var(--muted); }
+.nav .btn.active, .nav .btn:hover { background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06)); color:var(--accent); border:1px solid rgba(255,255,255,0.06); }
+
+/* Buttons */
+.btn-primary { background: linear-gradient(90deg,var(--accent),#023e7f); border:none; }
+.btn-outline-primary { color:var(--accent); border:1px solid rgba(109,40,217,0.12); }
+
+/* Card glass variants */
+.glass-card { background: var(--glass); border-radius:14px; padding:14px; border:1px solid rgba(255,255,255,0.45); box-shadow: 0 8px 26px rgba(16,24,40,0.06); }
+
+
+/*.day-cell { width: calc(100%/7 - 8px); min-height:100px; margin:6px; padding:10px; border-radius:14px; cursor:pointer; transition: transform .12s ease, box-shadow .12s ease; display:flex; flex-direction:column; }*/
+.day-cell { position: relative; }
+.day-cell:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(16,24,40,0.08); }
+.day-cell .date { font-weight:600; }
+.day-cell.empty { background: linear-gradient(135deg, rgba(255,230,230,0.6), rgba(255,240,240,0.3)); border: 1px solid rgba(255,0,0,0.08); }
+.day-cell.partial { background: linear-gradient(135deg, rgba(255,245,230,0.6), rgba(255,250,240,0.3)); border: 1px solid rgba(255,165,0,0.08); }
+.day-cell.filled { background: linear-gradient(135deg, rgba(230,255,240,0.6), rgba(245,255,250,0.3)); border: 1px solid rgba(16,185,129,0.08); }
+.day-cell.holiday { background: linear-gradient(135deg, rgba(225,235,255,0.8), rgba(235,245,255,0.65)); border:1px solid rgba(45,85,255,0.08); }
+.day-cell.weekoff { background: linear-gradient(135deg, rgba(240,248,255,0.8), rgba(250,252,255,0.7)); border:1px solid rgba(99,102,241,0.08); }
+.day-cell.leave { background: linear-gradient(135deg, rgba(245,238,255,0.85), rgba(255,245,255,0.7)); border:1px solid rgba(139,92,246,0.08); }
+
+/* Today and past styles */
+.day-cell.today { background: linear-gradient(135deg, rgba(230,245,255,0.95), rgba(220,235,255,0.9)); border:2px solid var(--accent); box-shadow: 0 8px 24px rgba(15,75,138,0.12); }
+.day-cell.past { background: linear-gradient(135deg, rgba(248,249,250,0.9), rgba(245,246,250,0.9)); color: rgba(15,23,42,0.6); }
+
+/* blink animation */
+.day-cell.blink { animation: blink 0.6s linear infinite; }
+@keyframes blink { 0% { transform: translateY(0); box-shadow: 0 8px 24px rgba(15,75,138,0.12); } 50% { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(15,75,138,0.22); } 100% { transform: translateY(0); box-shadow: 0 8px 24px rgba(15,75,138,0.12); } }
+
+/* small action buttons inside day cell */
+.day-cell .actions { position:absolute; right:8px; top:8px; display:flex; gap:6px; }
+.day-cell .actions button { padding:4px 6px; font-size:12px; line-height:1; border-radius:6px; min-width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; }
+.day-cell .actions button[title='Mark as Leave'], .day-cell .actions button[title='Mark as Weekoff'] { background: rgba(255,255,255,0.5); }
+.day-cell .actions button[title='Mark as Leave'] { color: #6b46c1; border-color: rgba(107,70,193,0.12); }
+.day-cell .actions button[title='Mark as Weekoff'] { color: #2563eb; border-color: rgba(37,99,235,0.12); }
+.day-cell .actions button[title='Mark as Holiday'] { color: #0b4b8a; border-color: rgba(11,75,138,0.12); }
+
+.hour-box { padding:10px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(250,250,255,0.45)); margin-bottom:10px; }
+.hour-box.lunch { opacity:0.6; background: linear-gradient(90deg,#fff7e6,#fffdf0); }
+
+
+
+/* === FIX RIGHT GAP PERMANENTLY === */
+#report-calendar-root > .d-flex,
+#calendar-root > .d-flex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;                 /* spacing between cells */
+}
+
+/* Each day card */
+.day-cell {
+    flex: 0 0 calc((100% - 6 * 12px) / 7);
+    max-width: calc((100% - 6 * 12px) / 7);
+    margin: 0 !important;      /* REMOVE margins */
+    box-sizing: border-box;
+}
+
+
+@media (max-width: 768px) {
+    .day-cell {
+        flex: 0 0 calc((100% - 12px) / 2);
+        max-width: calc((100% - 12px) / 2);
+    }
+}
+
+/*@media (max-width: 480px) {
+    #report-calendar-root > .d-flex,
+    #calendar-root > .d-flex {
+        justify-content: center;
+    }
+
+    .day-cell {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}*/
+
+
+
+
+/* Responsive tweaks */
+/*@media (max-width:768px){
+	.day-cell { width: calc(50% - 12px); }
+}*/
+
+/* Quill toolbar smaller / inline */
+.ql-toolbar.ql-snow { padding: 6px; border-radius: 8px 8px 0 0; background: rgba(255,255,255,0.6); border-bottom:1px solid rgba(0,0,0,0.03); }
+.ql-container.ql-snow { border-radius: 0 0 8px 8px; min-height: 90px; background: rgba(255,255,255,0.64); }
+.ql-editor p { margin: 0 0 6px 0; }
+
+/* Autosave status */
+#autosaveStatus { font-style: italic; }
+
+/* small responsive polish */
+/*@media (max-width:576px){
+	.day-cell { width: calc(50% - 12px); }
+	.nav { display:flex; gap:8px; }
+}*/
+
+
+/* Minimal glassmorphism styles */
+body { font-family: Inter, system-ui, Arial, sans-serif; }
+.card { background: rgba(255,255,255,0.6); backdrop-filter: blur(6px); border-radius:12px; box-shadow: 0 6px 18px rgba(10,10,20,0.08); }
+#calendar-root { display:block; }
+/*.day-cell { border-radius:8px; padding:8px; margin:6px; min-height:72px; background: rgba(255,255,255,0.35); }*/
+.day-cell .date { font-weight:600; }
+
+@media (max-width:576px){ .day-cell { min-height:60px; padding:6px } }
+
+.calendar-legend { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.legend-item { display:inline-flex; gap:6px; align-items:center; color:var(--muted); font-size:14px; }
+.legend-dot { width:14px; height:14px; border-radius:3px; display:inline-block; }
+.legend-dot.empty { background: linear-gradient(135deg, rgba(255,230,230,0.6), rgba(255,240,240,0.3)); border:1px solid rgba(255,0,0,0.08); }
+.legend-dot.partial { background: linear-gradient(135deg, rgba(255,245,230,0.6), rgba(255,250,240,0.3)); border:1px solid rgba(255,165,0,0.08); }
+.legend-dot.filled { background: linear-gradient(135deg, rgba(230,255,240,0.6), rgba(245,255,250,0.3)); border:1px solid rgba(16,185,129,0.08); }
+.legend-dot.holiday { background: linear-gradient(135deg, rgba(225,235,255,0.8), rgba(235,245,255,0.65)); border:1px solid rgba(45,85,255,0.08); }
+.legend-dot.weekoff { background: linear-gradient(135deg, rgba(240,248,255,0.8), rgba(250,252,255,0.7)); border:1px solid rgba(99,102,241,0.08); }
+.legend-dot.leave { background: linear-gradient(135deg, rgba(245,238,255,0.85), rgba(255,245,255,0.7)); border:1px solid rgba(139,92,246,0.08); }

@@ -1,0 +1,68 @@
+# Use UTF-8 encoding
+AddDefaultCharset UTF-8
+
+RewriteEngine On
+
+# ==================================================
+# HIDE .php IN BROWSER URL
+# example: /worksheet.php -> /worksheet
+# ==================================================
+RewriteCond %{THE_REQUEST} \s/+[^\s?]+\.php(?:[\s?]|$) [NC]
+RewriteRule ^(.+)\.php$ $1 [R=301,L,NC]
+
+# ==================================================
+# LOAD PHP INTERNALLY (INVISIBLE)
+# example: /worksheet → worksheet.php
+# ==================================================
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+)$ $1.php [L]
+
+# ==================================================
+# Redirect to HTTPS
+# ==================================================
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# ==================================================
+# Remove www
+# ==================================================
+RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+
+# ==================================================
+# Your existing router (keep LAST)
+# ==================================================
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.+)$ error.php?url=$1 [L,QSA]
+
+# Disable directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "(^\.htaccess|\.env|config\.php|db\.php)">
+    Require all denied
+</FilesMatch>
+
+# Cache control
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
