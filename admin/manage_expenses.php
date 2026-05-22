@@ -44,13 +44,63 @@ if (isset($_POST['delete_document'])) {
     $conn->query("DELETE FROM expense_documents WHERE id = $document_id");
 }
 
-// Fetch expenses
+// Fetch expenses with pagination
+$rows_per_page = 10;
+$search = trim($_GET['search'] ?? '');
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+$current_page = max(1, $current_page);
+$offset = ($current_page - 1) * $rows_per_page;
+$search_like = '%' . $search . '%';
 
-$stmt = $conn->prepare("SELECT lr.*, e.name AS employee_name, e.employee_id FROM expenses lr 
-                        JOIN employees e ON lr.employee_id = e.id 
-                        ORDER BY lr.created_at DESC");
+if ($search !== '') {
+    $count_stmt = $conn->prepare("SELECT COUNT(*) AS total FROM expenses lr
+                                  JOIN employees e ON lr.employee_id = e.id
+                                  WHERE lr.title LIKE ? OR lr.expense_type LIKE ?");
+    $count_stmt->bind_param("ss", $search_like, $search_like);
+} else {
+    $count_stmt = $conn->prepare("SELECT COUNT(*) AS total FROM expenses lr
+                                  JOIN employees e ON lr.employee_id = e.id");
+}
+
+$count_stmt->execute();
+$total_records = (int) ($count_stmt->get_result()->fetch_assoc()['total'] ?? 0);
+$total_pages = $total_records > 0 ? (int) ceil($total_records / $rows_per_page) : 1;
+$current_page = min($current_page, $total_pages);
+$offset = ($current_page - 1) * $rows_per_page;
+
+if ($search !== '') {
+    $stmt = $conn->prepare("SELECT lr.*, e.name AS employee_name, e.employee_id FROM expenses lr
+                            JOIN employees e ON lr.employee_id = e.id
+                            WHERE lr.title LIKE ? OR lr.expense_type LIKE ?
+                            ORDER BY lr.created_at DESC
+                            LIMIT ?, ?");
+    $stmt->bind_param("ssii", $search_like, $search_like, $offset, $rows_per_page);
+} else {
+    $stmt = $conn->prepare("SELECT lr.*, e.name AS employee_name, e.employee_id FROM expenses lr
+                            JOIN employees e ON lr.employee_id = e.id
+                            ORDER BY lr.created_at DESC
+                            LIMIT ?, ?");
+    $stmt->bind_param("ii", $offset, $rows_per_page);
+}
+
 $stmt->execute();
 $result = $stmt->get_result();
+$page_query = ['page' => $current_page];
+if ($search !== '') {
+    $page_query['search'] = $search;
+}
+$page_action_url = 'manage_expenses?' . http_build_query($page_query);
+
+$pagination_pages = [];
+if ($total_pages <= 7) {
+    $pagination_pages = range(1, $total_pages);
+} else {
+    $pagination_pages = [1, 2, $current_page - 1, $current_page, $current_page + 1, $total_pages - 1, $total_pages];
+    $pagination_pages = array_values(array_unique(array_filter($pagination_pages, function ($page) use ($total_pages) {
+        return $page >= 1 && $page <= $total_pages;
+    })));
+    sort($pagination_pages);
+}
 ?>
 <div class="container-fluid py-4">
     <!-- Expense Management Header -->
@@ -72,7 +122,7 @@ $result = $stmt->get_result();
             <div class="expense-filter-card mb-4">
                 <form method="GET" class="expense-filter-form">
                     <div class="expense-filter-inputs">
-                        <input type="text" name="search" class="expense-filter-input" placeholder="Search by Expense Title or Type">
+                        <input type="text" name="search" class="expense-filter-input" placeholder="Search by Expense Title or Type" value="<?= htmlspecialchars($search) ?>">
                         <button type="submit" class="expense-btn-search">
                             <i class="fas fa-search me-2"></i>Search
                         </button>
@@ -101,6 +151,7 @@ $result = $stmt->get_result();
                                 </tr>
                             </thead>
                             <tbody class="expense-table-body">
+                                <?php if ($result->num_rows > 0): ?>
                                 <?php while ($row = $result->fetch_assoc()): ?>
                                     <tr class="expense-table-row">
                                         <td class="expense-table-cell">
@@ -125,7 +176,7 @@ $result = $stmt->get_result();
                                                 <button class="expense-btn-view" data-bs-toggle="modal" data-bs-target="#editExpenseModal<?= $row['id'] ?>" title="View & Edit">
                                                     <i class="fas fa-eye me-1"></i>View
                                                 </button>
-                                                <form action="manage_expenses" method="POST" style="display: inline;">
+                                                <form action="<?= htmlspecialchars($page_action_url) ?>" method="POST" style="display: inline;">
                                                     <input type="hidden" name="expense_id" value="<?= $row['id'] ?>">
                                                     <button type="submit" name="delete_expense" class="expense-btn-delete" title="Delete expense" onclick="return confirm('Delete this expense?');">
                                                         <i class="fas fa-trash me-1"></i>Delete
@@ -138,7 +189,7 @@ $result = $stmt->get_result();
                                     <div class="modal fade" id="editExpenseModal<?= $row['id'] ?>" tabindex="-1" aria-labelledby="editExpenseModalLabel" aria-hidden="true">
                                         <div class="modal-dialog modal-lg expense-modal-dialog">
                                             <div class="modal-content expense-modal-content">
-                                                <form action="manage_expenses" method="POST" enctype="multipart/form-data">
+                                                <form action="<?= htmlspecialchars($page_action_url) ?>" method="POST" enctype="multipart/form-data">
                                                     <div class="expense-modal-header">
                                                         <h5 class="expense-modal-title">Expense Details</h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -230,7 +281,7 @@ $result = $stmt->get_result();
                                                                                 <a href="<?= htmlspecialchars($doc['file_path']) ?>" class="expense-btn-doc-download" download>
                                                                                     <i class="fas fa-download"></i>Download
                                                                                 </a>
-                                                                                <form action="manage_expenses" method="POST" style="display: inline;">
+                                                                                <form action="<?= htmlspecialchars($page_action_url) ?>" method="POST" style="display: inline;">
                                                                                     <input type="hidden" name="document_id" value="<?= $doc['id'] ?>">
                                                                                     <button type="submit" name="delete_document" class="expense-btn-doc-delete" onclick="return confirm('Delete this document?');">
                                                                                         <i class="fas fa-trash"></i>Delete
@@ -263,10 +314,44 @@ $result = $stmt->get_result();
 
 
                                 <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr class="expense-table-row">
+                                        <td class="expense-table-cell expense-empty-state" colspan="7">No expense records found.</td>
+                                    </tr>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
                 </div>
+                <?php if ($total_pages > 1): ?>
+                    <div class="expense-pagination-wrap">
+                        <div class="expense-pagination-info">
+                            Page <?= $current_page ?> of <?= $total_pages ?>
+                        </div>
+                        <div class="expense-pagination">
+                            <?php
+                            $prev_query = ['page' => $current_page - 1];
+                            $next_query = ['page' => $current_page + 1];
+                            if ($search !== '') {
+                                $prev_query['search'] = $search;
+                                $next_query['search'] = $search;
+                            }
+                            ?>
+                            <a class="expense-pagination-link <?= $current_page <= 1 ? 'expense-pagination-disabled' : '' ?>" href="<?= $current_page > 1 ? 'manage_expenses?' . htmlspecialchars(http_build_query($prev_query)) : '#' ?>">Previous</a>
+                            <?php $last_rendered_page = 0; ?>
+                            <?php foreach ($pagination_pages as $page): ?>
+                                <?php if ($last_rendered_page > 0 && $page - $last_rendered_page > 1): ?>
+                                    <span class="expense-pagination-ellipsis">...</span>
+                                <?php endif; ?>
+                                <?php $loop_query = ['page' => $page]; ?>
+                                <?php if ($search !== '') $loop_query['search'] = $search; ?>
+                                <a class="expense-pagination-link <?= $page === $current_page ? 'expense-pagination-active' : '' ?>" href="manage_expenses?<?= htmlspecialchars(http_build_query($loop_query)) ?>"><?= $page ?></a>
+                                <?php $last_rendered_page = $page; ?>
+                            <?php endforeach; ?>
+                            <a class="expense-pagination-link <?= $current_page >= $total_pages ? 'expense-pagination-disabled' : '' ?>" href="<?= $current_page < $total_pages ? 'manage_expenses?' . htmlspecialchars(http_build_query($next_query)) : '#' ?>">Next</a>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -468,6 +553,12 @@ $result = $stmt->get_result();
         font-size: 13px;
         color: #111827;
         vertical-align: middle;
+    }
+
+    .expense-empty-state {
+        text-align: center;
+        color: #6b7280;
+        padding: 28px 16px;
     }
 
     .expense-employee-info {
@@ -852,6 +943,80 @@ $result = $stmt->get_result();
         transform: translateY(-2px);
     }
 
+    .expense-pagination-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 24px 24px;
+        border-top: 1px solid #e5eaf1;
+        flex-wrap: wrap;
+    }
+
+    .expense-pagination-info {
+        font-size: 13px;
+        font-weight: 600;
+        color: #6b7280;
+    }
+
+    .expense-pagination {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .expense-pagination-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 14px;
+        border: 1px solid #d7deea;
+        border-radius: 10px;
+        background-color: white;
+        color: #111827;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .expense-pagination-link:hover {
+        background-color: #f8fafc;
+        color: #111827;
+        border-color: #9ca3af;
+    }
+
+    .expense-pagination-ellipsis {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 40px;
+        color: #6b7280;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .expense-pagination-active {
+        background-color: #111827;
+        border-color: #111827;
+        color: white;
+    }
+
+    .expense-pagination-active:hover {
+        background-color: #111827;
+        border-color: #111827;
+        color: white;
+    }
+
+    .expense-pagination-disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
     /* ==================== RESPONSIVE ==================== */
     @media (max-width: 768px) {
         .expense-header-top {
@@ -892,6 +1057,15 @@ $result = $stmt->get_result();
 
         .expense-docs-list {
             grid-template-columns: 1fr;
+        }
+
+        .expense-pagination-wrap {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .expense-pagination {
+            justify-content: center;
         }
     }
 </style>

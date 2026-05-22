@@ -28,8 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         $message = "Task assigned successfully!";
+        $message_type = "success";
     } else {
         $message = "Failed to assign task!";
+        $message_type = "error";
     }
 }
 ?>
@@ -130,11 +132,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     margin-bottom: 1rem;
     padding: 0.95rem 1.05rem;
     border-radius: 16px;
-    border: 1px solid #dbe3ed;
-    background: #f8fafc;
-    color: #334155;
     font-size: 0.92rem;
     font-weight: 700;
+}
+
+.assign-task-alert-success {
+    border: 1px solid #86efac;
+    background: #dcfce7;
+    color: #166534;
+}
+
+.assign-task-alert-error {
+    border: 1px solid #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 .assign-task-form-grid {
@@ -269,7 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="assign-task-form-card">
                 <div class="assign-task-form-body">
                     <?php if (isset($message)) : ?>
-                        <div class="assign-task-alert"><?= $message ?></div>
+                        <div class="assign-task-alert assign-task-alert-<?= htmlspecialchars($message_type ?? 'success') ?>"><?= htmlspecialchars($message) ?></div>
                     <?php endif; ?>
 
                     <form action="assign_task" method="POST" enctype="multipart/form-data">

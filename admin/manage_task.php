@@ -1,9 +1,47 @@
 <?php include("header.php"); ?>
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+$message = '';
+$message_type = '';
+
 // Handle delete request
 if (isset($_POST['delete_task'])) {
-    $task_id = $_POST['task_id'];
-    $conn->query("DELETE FROM tasks WHERE id = $task_id");
+    $task_id = isset($_POST['task_id']) ? (int) $_POST['task_id'] : 0;
+    if ($task_id > 0) {
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare("DELETE FROM task_documents WHERE task_id = ?");
+            $stmt->bind_param("i", $task_id);
+            $stmt->execute();
+
+            $stmt = $conn->prepare("DELETE FROM task_remarks WHERE task_id = ?");
+            $stmt->bind_param("i", $task_id);
+            $stmt->execute();
+
+            $stmt = $conn->prepare("DELETE FROM tasks WHERE id = ? LIMIT 1");
+            $stmt->bind_param("i", $task_id);
+            $stmt->execute();
+
+            $conn->commit();
+            if ($stmt->affected_rows > 0) {
+                $message = 'Task deleted successfully!';
+                $message_type = 'success';
+            } else {
+                $message = 'Task not found or already deleted.';
+                $message_type = 'error';
+            }
+        } catch (mysqli_sql_exception $exception) {
+            $conn->rollback();
+            $message = 'Unable to delete task. ' . $exception->getMessage();
+            $message_type = 'error';
+        }
+    } else {
+        $message = 'Invalid task selected for deletion.';
+        $message_type = 'error';
+    }
 }
 // Handle update request
 if (isset($_POST['update_task'])) {
@@ -32,8 +70,12 @@ if (isset($_POST['update_task'])) {
 }
 // Handle document delete request
 if (isset($_POST['delete_document'])) {
-    $document_id = $_POST['document_id'];
-    $conn->query("DELETE FROM task_documents WHERE id = $document_id");
+    $document_id = isset($_POST['document_id']) ? (int) $_POST['document_id'] : 0;
+    if ($document_id > 0) {
+        $stmt = $conn->prepare("DELETE FROM task_documents WHERE id = ? LIMIT 1");
+        $stmt->bind_param("i", $document_id);
+        $stmt->execute();
+    }
 }
 // Fetch tasks
 $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JOIN employees e ON t.employee_id = e.id");
@@ -356,6 +398,26 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
     margin-right: 0.6rem;
 }
 
+.manage-task-alert {
+    margin-bottom: 1rem;
+    padding: 0.95rem 1.05rem;
+    border-radius: 16px;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.manage-task-alert-success {
+    border: 1px solid #86efac;
+    background: #dcfce7;
+    color: #166534;
+}
+
+.manage-task-alert-error {
+    border: 1px solid #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 @media (max-width: 991.98px) {
     .manage-task-topbar-grid,
     .manage-task-search-row,
@@ -395,6 +457,9 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
             </div>
         </div>
         <div class="col-12">
+            <?php if ($message !== '') : ?>
+                <div class="manage-task-alert manage-task-alert-<?= htmlspecialchars($message_type) ?>"><?= htmlspecialchars($message) ?></div>
+            <?php endif; ?>
             <div class="manage-task-search-card">
                 <form method="GET" class="mb-0">
                     <div class="manage-task-search-row">
@@ -421,9 +486,10 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php $serial_number = 1; ?>
                                 <?php while ($row = $tasks->fetch_assoc()) : ?>
                                     <tr>
-                                        <td><span class="manage-task-id-badge"><?= $row['id'] ?></span></td>
+                                        <td><span class="manage-task-id-badge"><?= $serial_number++ ?></span></td>
                                         <td><span class="manage-task-employee"><?= $row['employee_name'] ?></span></td>
                                         <td><span class="manage-task-title-text"><?= $row['title'] ?></span></td>
                                       
