@@ -9,6 +9,7 @@ date_default_timezone_set('Asia/Kolkata');
 //   exit;
 // }
 $current_page = basename($_SERVER['PHP_SELF']); // Gets the current page name
+$current_view = $_GET['view'] ?? 'my-dashboard';
 // Retrieve logged-in employee data
 // Retrieve logged-in employee data with fallback values
 $employee_name = $_SESSION['employee_name'] ?? 'Unknown';
@@ -18,6 +19,7 @@ $employee_email = $_SESSION['employee_email'] ?? 'No Email';
 $employee_role = $_SESSION['employee_role'] ?? 'No Role';
 $employee_designation = $_SESSION['employee_designation'] ?? 'No Designation';
 $employee_photo = $_SESSION['employee_photo'] ?? 'assets/img/logos/user.png';
+$portal_role = strtolower($_SESSION['role'] ?? $_SESSION['employee_role'] ?? 'employee');
 
 $sql = "SELECT * FROM organization LIMIT 1";
 $result = $conn->query($sql);
@@ -723,6 +725,57 @@ $org = $result->fetch_assoc();
     </div>
     Dashboard
   </a>
+</li>
+
+<?php
+$performance_portal_pages = ['performance.php'];
+$performance_portal_views = [
+  'my-dashboard' => ['label' => 'My Dashboard', 'icon' => 'bi bi-speedometer2'],
+  'my-goals' => ['label' => 'My Goals', 'icon' => 'bi bi-bullseye'],
+  'my-checkins' => ['label' => 'My Check-Ins', 'icon' => 'bi bi-journal-check'],
+  'my-self-reviews' => ['label' => 'My Self Reviews', 'icon' => 'bi bi-person-check'],
+  'my-feedback' => ['label' => 'My Feedback', 'icon' => 'bi bi-chat-left-dots'],
+  'my-recognition' => ['label' => 'My Recognition', 'icon' => 'bi bi-award'],
+  'my-history' => ['label' => 'My Performance', 'icon' => 'bi bi-graph-up']
+];
+
+if ($portal_role === 'manager' || $portal_role === 'supervisor') {
+  $performance_portal_views['team-dashboard'] = ['label' => 'Team Performance Dashboard', 'icon' => 'bi bi-speedometer'];
+  $performance_portal_views['team-goals'] = ['label' => 'Team Goals', 'icon' => 'bi bi-bullseye'];
+  $performance_portal_views['team-reviews'] = ['label' => 'Team Reviews', 'icon' => 'bi bi-people'];
+  $performance_portal_views['pending-approvals'] = ['label' => 'Pending Approvals', 'icon' => 'bi bi-hourglass-split'];
+  $performance_portal_views['employee-feedback'] = ['label' => 'Employee Feedback', 'icon' => 'bi bi-chat-left-dots'];
+  $performance_portal_views['team-analytics'] = ['label' => 'Team Analytics', 'icon' => 'bi bi-bar-chart'];
+  $performance_portal_views['goal-assignment'] = ['label' => 'Goal Assignment', 'icon' => 'bi bi-kanban'];
+  $performance_portal_views['performance-monitoring'] = ['label' => 'Performance Monitoring', 'icon' => 'bi bi-activity'];
+}
+?>
+
+<li class="nav-item">
+  <a class="nav-link <?= in_array($current_page, $performance_portal_pages, true)?'active':'' ?>"
+   href="#performancePortalMenu"
+   data-bs-toggle="collapse"
+   role="button"
+   aria-expanded="<?= in_array($current_page, $performance_portal_pages, true)?'true':'false' ?>">
+
+    <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2">
+      <i class="bi bi-graph-up-arrow text-dark"></i>
+    </div>
+    Performance
+    <i class="bi bi-chevron-down sidebar-arrow"></i>
+  </a>
+
+  <div class="collapse <?= in_array($current_page, $performance_portal_pages, true)?'show':'' ?>" id="performancePortalMenu">
+    <ul class="navbar-nav ms-4">
+      <?php foreach ($performance_portal_views as $performance_key => $performance_item): ?>
+        <li class="nav-item">
+          <a class="nav-link <?= $current_page=='performance.php' && $current_view==$performance_key ? 'active' : '' ?>" href="performance?view=<?= $performance_key ?>">
+            <i class="<?= $performance_item['icon'] ?> me-2"></i> <?= $performance_item['label'] ?>
+          </a>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
 </li>
 
 

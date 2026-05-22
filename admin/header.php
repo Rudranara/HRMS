@@ -20,6 +20,8 @@ if (isset($_SESSION['ADMIN_LOGIN_TIME']) && (time() - $_SESSION['ADMIN_LOGIN_TIM
 
 // Dynamic page detection
 $current_page = basename($_SERVER['PHP_SELF']); // Gets the current page name
+$current_view = $_GET['view'] ?? 'dashboard';
+$session_role = $_SESSION['role'] ?? ($_SESSION['admin_roll'] ?? 'Admin');
 
 // Admin details (replace with actual session variable names storing admin details)
 $admin_id = $_SESSION['admin_id'] ?? '123';
@@ -891,6 +893,51 @@ $org = $result->fetch_assoc();
                 Advance Requests
               </a>
             </li>
+          </ul>
+        </div>
+      </li>
+
+      <?php
+      $performance_pages = ['performance.php'];
+      $performance_views = [
+        'dashboard' => ['label' => 'Dashboard', 'icon' => 'bi bi-speedometer2'],
+        'review-cycles' => ['label' => 'Review Cycles', 'icon' => 'bi bi-calendar3'],
+        'goals-kpis' => ['label' => 'Goals & KPIs', 'icon' => 'bi bi-bullseye'],
+        'feedback' => ['label' => 'Feedback', 'icon' => 'bi bi-chat-left-dots'],
+        'check-ins' => ['label' => 'Check-Ins', 'icon' => 'bi bi-journal-check'],
+        'self-reviews' => ['label' => 'Self Reviews', 'icon' => 'bi bi-person-check'],
+        'manager-reviews' => ['label' => 'Manager Reviews', 'icon' => 'bi bi-people'],
+        'reports' => ['label' => 'Reports', 'icon' => 'bi bi-bar-chart'],
+        'recognition' => ['label' => 'Recognition', 'icon' => 'bi bi-award'],
+        'pip' => ['label' => 'PIP', 'icon' => 'bi bi-activity'],
+        'settings' => ['label' => 'Settings', 'icon' => 'bi bi-gear']
+      ];
+      ?>
+
+      <li class="nav-item">
+        <a class="nav-link <?= in_array($current_page, $performance_pages, true)?'active':'' ?>"
+           href="#performanceMenu"
+           data-bs-toggle="collapse"
+           aria-expanded="<?= in_array($current_page, $performance_pages, true)?'true':'false' ?>">
+
+          <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+            <i class="bi bi-graph-up-arrow text-dark"></i>
+          </div>
+
+          <span class="nav-link-text ms-1">Performance</span>
+          <i class="bi bi-chevron-down sidebar-arrow"></i>
+        </a>
+
+        <div class="collapse <?= in_array($current_page, $performance_pages, true)?'show':'' ?>" id="performanceMenu">
+          <ul class="navbar-nav ms-4">
+            <?php foreach ($performance_views as $performance_key => $performance_item): ?>
+              <li class="nav-item">
+                <a class="nav-link <?= $current_page=='performance.php' && $current_view==$performance_key ? 'active' : '' ?>" href="performance?view=<?= $performance_key ?>">
+                  <i class="<?= $performance_item['icon'] ?> me-2"></i>
+                  <?= $performance_item['label'] ?>
+                </a>
+              </li>
+            <?php endforeach; ?>
           </ul>
         </div>
       </li>
