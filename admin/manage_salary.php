@@ -8,6 +8,7 @@ $selected_office = isset($_GET['office']) ? trim(urldecode($_GET['office'])) : '
 $selected_year = isset($_GET['year']) ? $_GET['year'] : date('Y');
 $selected_month = isset($_GET['month']) ? $_GET['month'] : date('m');
 $selected_employee_id = isset($_GET['employee_id']) ? $_GET['employee_id'] : '';
+$delete_success_message = isset($_GET['salary_deleted']) ? 'Selected salaries deleted successfully.' : '';
 // Prepare office filter
 $office_condition = "";
 if (!empty($selected_office)) {
@@ -110,8 +111,12 @@ $salaries = $conn->query("
 if (isset($_POST['deleteSelected']) && !empty($_POST['selected_ids'])) {
     $ids_to_delete = implode(',', $_POST['selected_ids']);
     $conn->query("DELETE FROM salary WHERE id IN ($ids_to_delete)");
-    echo "<div class='alert alert-success' style='position: fixed; top: 10px; right: 10px;'>Selected salaries deleted successfully.</div>
-          <script>setTimeout(() => location.href = 'manage_salary', 2000);</script>";
+
+    $redirect_params = $_GET;
+    $redirect_params['salary_deleted'] = 1;
+
+    header('Location: manage_salary?' . http_build_query($redirect_params));
+    exit;
 }
 
 include 'header.php';
@@ -225,6 +230,16 @@ include 'header.php';
         margin-bottom: 1.2rem;
         background: linear-gradient(180deg, #fafbfc 0%, #f7f9fb 100%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 14px 32px rgba(15, 23, 42, 0.05);
+    }
+
+    .salary-flash-message {
+        margin-bottom: 1.2rem;
+        border: 1px solid #22c55e;
+        border-radius: 18px;
+        background-color: #22c55e;
+        background-image: linear-gradient(310deg, #22c55e 0%, rgb(132.1624454148, 220.2707423581, 19.9292576419) 100%);
+        color: #183153;
+        box-shadow: 0 12px 26px rgba(34, 197, 94, 0.24);
     }
 
     .salary-filter-card .row {
@@ -368,6 +383,13 @@ include 'header.php';
                 </div>
             </div>
         </div>
+        <?php if (!empty($delete_success_message)): ?>
+            <div class="col-12">
+                <div class="alert salary-flash-message" role="alert">
+                    <?= htmlspecialchars($delete_success_message) ?>
+                </div>
+            </div>
+        <?php endif; ?>
         <div class="col-12">
             <div class="salary-filter-card">
             <form method="GET" action="manage_salary" class="row align-items-end">

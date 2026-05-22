@@ -3,7 +3,27 @@ require 'header.php';
 require 'db_connection.php';
 date_default_timezone_set('Asia/Kolkata');
 
-$selected_date = $_GET['request_date'] ?? '';
+$current_month = date('m');
+$current_year = date('Y');
+
+$selected_month = $_GET['month'] ?? $current_month;
+$selected_year = $_GET['year'] ?? $current_year;
+$selected_employee_id = trim($_GET['name'] ?? '');
+
+$start_date = "{$selected_year}-{$selected_month}-01 00:00:00";
+$end_date = date('Y-m-t 23:59:59', strtotime("{$selected_year}-{$selected_month}-01"));
+$show_reset = $selected_employee_id !== ''
+    || $selected_month !== $current_month
+    || $selected_year !== $current_year;
+
+$employee_names = [];
+$employee_result = $conn->query("SELECT id, name FROM employees WHERE name IS NOT NULL AND name != '' ORDER BY name ASC");
+
+if ($employee_result) {
+    while ($employee_row = $employee_result->fetch_assoc()) {
+        $employee_names[] = $employee_row;
+    }
+}
 
 /*
   Forgot Punch-Out Conditions:
@@ -29,19 +49,22 @@ WHERE
     a.is_auto_punchout = 1
     AND a.status = 'Absent'
     AND DATE(a.punch_in_time) < CURDATE()
-ORDER BY a.punch_in_time DESC
-
+    AND a.punch_in_time BETWEEN ? AND ?
 ";
 
-
-if (!empty($selected_date)) {
-    $query = str_replace("ORDER BY a.punch_in_time DESC", "AND DATE(a.punch_in_time) = ?\nORDER BY a.punch_in_time DESC", $query);
+if ($selected_employee_id !== '') {
+    $query .= " AND a.employee_id = ?";
 }
+
+$query .= " ORDER BY a.punch_in_time DESC";
 
 $stmt = $conn->prepare($query);
 
-if (!empty($selected_date)) {
-    $stmt->bind_param("s", $selected_date);
+if ($selected_employee_id !== '') {
+    $employee_filter = (int) $selected_employee_id;
+    $stmt->bind_param("ssi", $start_date, $end_date, $employee_filter);
+} else {
+    $stmt->bind_param("ss", $start_date, $end_date);
 }
 
 $stmt->execute();
@@ -354,13 +377,43 @@ $result = $stmt->get_result();
 
             <form method="GET" class="forgot-punchout-filter-card">
                 <div class="forgot-punchout-filter-field">
-                    <label for="request_date">Select Date</label>
-                    <input type="date" id="request_date" name="request_date" class="form-control" value="<?= htmlspecialchars($selected_date) ?>">
+                    <label for="month">Select Month</label>
+                    <select id="month" name="month" class="form-control">
+                        <?php for ($m = 1; $m <= 12; $m++):
+                            $month_value = str_pad($m, 2, '0', STR_PAD_LEFT);
+                        ?>
+                            <option value="<?= $month_value ?>" <?= $selected_month === $month_value ? 'selected' : '' ?>>
+                                <?= date('F', mktime(0, 0, 0, $m, 1)) ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+                <div class="forgot-punchout-filter-field">
+                    <label for="year">Select Year</label>
+                    <select id="year" name="year" class="form-control">
+                        <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
+                            <option value="<?= $y ?>" <?= (string) $selected_year === (string) $y ? 'selected' : '' ?>>
+                                <?= $y ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+                <div class="forgot-punchout-filter-field">
+                    <label for="name">Employee Name</label>
+                    <select id="name" name="name" class="form-control">
+                        <option value="">All Employees</option>
+                        <?php foreach ($employee_names as $employee_name): ?>
+                            <option value="<?= htmlspecialchars($employee_name['id']) ?>"
+                                <?= $selected_employee_id === (string) $employee_name['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($employee_name['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div>
                     <button type="submit" class="forgot-punchout-filter-btn">Filter</button>
                 </div>
-                <?php if (!empty($selected_date)): ?>
+                <?php if ($show_reset): ?>
                     <div>
                         <a href="forgot_punchout_requests" class="forgot-punchout-reset-btn">Reset</a>
                     </div>
