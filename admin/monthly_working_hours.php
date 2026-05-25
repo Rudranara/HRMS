@@ -23,11 +23,17 @@ $end_date   = date("Y-m-t 23:59:59", strtotime($start_date));
 $total_days = cal_days_in_month(CAL_GREGORIAN, $selected_month, $selected_year);
 $total_working_days = 0;
 
+$holiday_query = $conn->prepare("\n    SELECT start_date\n    FROM events\n    WHERE YEAR(start_date) = ? AND MONTH(start_date) = ?\n");
+$holiday_query->bind_param("ii", $selected_year, $selected_month);
+$holiday_query->execute();
+$holidays = $holiday_query->get_result()->fetch_all(MYSQLI_ASSOC);
+$holiday_dates = array_column($holidays, 'start_date');
+
 for ($d = 1; $d <= $total_days; $d++) {
     $date = sprintf('%04d-%02d-%02d', $selected_year, $selected_month, $d);
     $day_of_week = date('N', strtotime($date)); // 1 (Mon) - 7 (Sun)
 
-    if ($day_of_week < 7) { // Exclude Sunday
+    if ($day_of_week < 7 && !in_array($date, $holiday_dates, true)) {
         $total_working_days++;
     }
 }
