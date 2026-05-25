@@ -51,6 +51,13 @@ if (isset($_POST['update_task'])) {
     $due_date = $_POST['due_date'];
     $status = $_POST['status'];
     $remark = $_POST['remark'];
+    $upload_dir = __DIR__ . "/../uploads/tasks/";
+    $upload_path_for_db = "../uploads/tasks/";
+
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+
     // Update task details
     $stmt = $conn->prepare("UPDATE tasks SET title = ?, description = ?, due_date = ?, status = ?, remark = ? WHERE id = ?");
     $stmt->bind_param("sssssi", $title, $description, $due_date, $status, $remark, $task_id);
@@ -59,10 +66,19 @@ if (isset($_POST['update_task'])) {
     if (!empty($_FILES['new_documents']['name'][0])) {
         foreach ($_FILES['new_documents']['name'] as $key => $fileName) {
             $fileTmp = $_FILES['new_documents']['tmp_name'][$key];
-            $filePath = "../uploads/tasks/" . basename($fileName);
+            $original_name = basename($fileName);
+            $file_extension = pathinfo($original_name, PATHINFO_EXTENSION);
+            $file_name = pathinfo($original_name, PATHINFO_FILENAME);
+            $safe_name = preg_replace('/[^A-Za-z0-9_-]/', '-', $file_name);
+            $safe_name = trim($safe_name, '-');
+            $safe_name = $safe_name !== '' ? $safe_name : 'task-document';
+            $stored_file_name = uniqid($safe_name . '-', true) . ($file_extension !== '' ? '.' . $file_extension : '');
+            $filePath = $upload_dir . $stored_file_name;
+
             if (move_uploaded_file($fileTmp, $filePath)) {
+                $document_path = $upload_path_for_db . $stored_file_name;
                 $stmt = $conn->prepare("INSERT INTO task_documents (task_id, file_path) VALUES (?, ?)");
-                $stmt->bind_param("is", $task_id, $filePath);
+                $stmt->bind_param("is", $task_id, $document_path);
                 $stmt->execute();
             }
         }
@@ -77,8 +93,51 @@ if (isset($_POST['delete_document'])) {
         $stmt->execute();
     }
 }
-// Fetch tasks
-$tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JOIN employees e ON t.employee_id = e.id");
+
+$tasks_per_page = 10;
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+$current_page = max(1, $current_page);
+
+$total_tasks_result = $conn->query("SELECT COUNT(*) AS total FROM tasks t INNER JOIN employees e ON t.employee_id = e.id");
+$total_tasks_row = $total_tasks_result ? $total_tasks_result->fetch_assoc() : ['total' => 0];
+$total_tasks = isset($total_tasks_row['total']) ? (int) $total_tasks_row['total'] : 0;
+$total_pages = max(1, (int) ceil($total_tasks / $tasks_per_page));
+$current_page = min($current_page, $total_pages);
+$offset = ($current_page - 1) * $tasks_per_page;
+
+$tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JOIN employees e ON t.employee_id = e.id ORDER BY t.id DESC LIMIT $tasks_per_page OFFSET $offset");
+
+function build_pagination_items($current_page, $total_pages)
+{
+    if ($total_pages <= 7) {
+        return range(1, $total_pages);
+    }
+
+    $pages = [1, 2, $total_pages - 1, $total_pages, $current_page - 1, $current_page, $current_page + 1];
+    $pages = array_filter($pages, function ($page) use ($total_pages) {
+        return $page >= 1 && $page <= $total_pages;
+    });
+
+    $pages = array_values(array_unique($pages));
+    sort($pages);
+
+    $items = [];
+    $previous_page = null;
+
+    foreach ($pages as $page) {
+        if ($previous_page !== null && $page - $previous_page > 1) {
+            $items[] = 'ellipsis';
+        }
+        $items[] = $page;
+        $previous_page = $page;
+    }
+
+    return $items;
+}
+
+$pagination_items = build_pagination_items($current_page, $total_pages);
+$showing_from = $total_tasks > 0 ? $offset + 1 : 0;
+$showing_to = min($offset + $tasks_per_page, $total_tasks);
 ?>
 <style>
 .manage-task-page {
@@ -418,6 +477,67 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
     color: #991b1b;
 }
 
+.manage-task-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0 1.2rem;
+}
+
+.manage-task-pagination-copy {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.manage-task-pagination-list {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.manage-task-pagination-link,
+.manage-task-pagination-ellipsis {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0.55rem 0.8rem;
+    border-radius: 12px;
+    border: 1px solid #dbe3ed;
+    background: #fff;
+    color: #334155;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.manage-task-pagination-link:hover {
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.manage-task-pagination-link.is-active {
+    background: #16324f;
+    border-color: #16324f;
+    color: #fff;
+}
+
+.manage-task-pagination-link.is-disabled {
+    pointer-events: none;
+    opacity: 0.45;
+}
+
+.manage-task-pagination-ellipsis {
+    border-style: dashed;
+    color: #94a3b8;
+}
+
 @media (max-width: 991.98px) {
     .manage-task-topbar-grid,
     .manage-task-search-row,
@@ -436,6 +556,11 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
     .manage-task-search-row .btn,
     .manage-task-actions > * {
         width: 100%;
+    }
+
+    .manage-task-pagination {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
 </style>
@@ -463,7 +588,7 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
             <div class="manage-task-search-card">
                 <form method="GET" class="mb-0">
                     <div class="manage-task-search-row">
-                        <input type="text" name="search" class="form-control" placeholder="Search by Name, Role or ID" value="">
+                        <input type="text" name="search" class="form-control" placeholder="Search by Name, Role or ID" value="<?= htmlspecialchars(isset($_GET['search']) ? $_GET['search'] : '') ?>">
                         <button type="submit" class="btn manage-task-search-btn mb-0">Search</button>
                     </div>
                 </form>
@@ -486,7 +611,7 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php $serial_number = 1; ?>
+                                <?php $serial_number = $offset + 1; ?>
                                 <?php while ($row = $tasks->fetch_assoc()) : ?>
                                     <tr>
                                         <td><span class="manage-task-id-badge"><?= $serial_number++ ?></span></td>
@@ -577,9 +702,42 @@ $tasks = $conn->query("SELECT t.*, e.name AS employee_name FROM tasks t INNER JO
                                         </div>
                                     </div>
                                 <?php endwhile; ?>
+                                <?php if ($serial_number === $offset + 1) : ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">No tasks found.</td>
+                                    </tr>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
+                    <?php if ($total_pages > 1) : ?>
+                        <div class="manage-task-pagination">
+                            <p class="manage-task-pagination-copy">Showing <?= $showing_from ?> to <?= $showing_to ?> of <?= $total_tasks ?> tasks</p>
+                            <div class="manage-task-pagination-list">
+                                <?php
+                                $previous_query = $_GET;
+                                $previous_query['page'] = max(1, $current_page - 1);
+                                ?>
+                                <a class="manage-task-pagination-link<?= $current_page === 1 ? ' is-disabled' : '' ?>" href="?<?= htmlspecialchars(http_build_query($previous_query)) ?>">Prev</a>
+                                <?php foreach ($pagination_items as $pagination_item) : ?>
+                                    <?php if ($pagination_item === 'ellipsis') : ?>
+                                        <span class="manage-task-pagination-ellipsis">...</span>
+                                    <?php else : ?>
+                                        <?php
+                                        $page_query = $_GET;
+                                        $page_query['page'] = $pagination_item;
+                                        ?>
+                                        <a class="manage-task-pagination-link<?= $pagination_item === $current_page ? ' is-active' : '' ?>" href="?<?= htmlspecialchars(http_build_query($page_query)) ?>"><?= $pagination_item ?></a>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                                <?php
+                                $next_query = $_GET;
+                                $next_query['page'] = min($total_pages, $current_page + 1);
+                                ?>
+                                <a class="manage-task-pagination-link<?= $current_page === $total_pages ? ' is-disabled' : '' ?>" href="?<?= htmlspecialchars(http_build_query($next_query)) ?>">Next</a>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

@@ -5,6 +5,7 @@ date_default_timezone_set('Asia/Kolkata');
 
 $employee_id = $_SESSION['employee_id']; 
 $message = "";
+$message_type = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $expense_type = $_POST['expense_type'];
@@ -14,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $amount = $_POST['amount'];
     $status = "Pending"; // Default status is Pending
     $upload_dir = "../uploads/expenses/";
+    $upload_dir_path = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'expenses' . DIRECTORY_SEPARATOR;
     $quantity = $_POST['quantity'] ?? null;
     $unit = $_POST['unit'] ?? null;
 
@@ -26,9 +28,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         // Handle multiple file uploads
         if (!empty($_FILES['documents']['name'][0])) {
+            if (!is_dir($upload_dir_path) && !mkdir($upload_dir_path, 0777, true) && !is_dir($upload_dir_path)) {
+                $message = "Expense added, but the upload folder could not be created.";
+                $message_type = "error";
+            }
+
             foreach ($_FILES['documents']['name'] as $key => $filename) {
-                $target_file = $upload_dir . basename($filename);
-                if (move_uploaded_file($_FILES['documents']['tmp_name'][$key], $target_file)) {
+                $safe_filename = basename($filename);
+                $target_file = $upload_dir . $safe_filename;
+                $target_file_path = $upload_dir_path . $safe_filename;
+
+                if (is_dir($upload_dir_path) && move_uploaded_file($_FILES['documents']['tmp_name'][$key], $target_file_path)) {
                     // Insert document record into the database
                     $stmt = $conn->prepare("INSERT INTO expense_documents (expense_id, file_path) VALUES (?, ?)");
                     $stmt->bind_param("is", $expense_id, $target_file);
@@ -36,9 +46,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             }
         }
-        $message = "Expense added successfully!";
+        if ($message === "") {
+            $message = "Expense added successfully!";
+            $message_type = "success";
+        }
     } else {
         $message = "Failed to add expense!";
+        $message_type = "error";
     }
 }
 ?>
@@ -84,11 +98,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     .add-expense-alert {
         margin-top: 1rem;
         margin-bottom: 0;
-        border: 1px solid #cfe0f6;
         border-radius: 16px;
-        background: #eef6ff;
-        color: #123b76;
         font-weight: 600;
+    }
+
+    .add-expense-alert-success {
+        border: 1px solid #86efac;
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .add-expense-alert-error {
+        border: 1px solid #fecaca;
+        background: #fee2e2;
+        color: #991b1b;
     }
 
     .add-expense-form {
@@ -254,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <h3 class="add-expense-title">Add Daily Expense</h3>
     <div class="add-expense-subtitle">Submit an expense entry with the same fields and upload flow in a cleaner, more professional layout.</div>
     <?php if (!empty($message)) : ?>
-        <div class="alert alert-info add-expense-alert"><?= $message ?></div>
+        <div class="alert add-expense-alert add-expense-alert-<?= htmlspecialchars($message_type ?: 'success') ?>"><?= htmlspecialchars($message) ?></div>
     <?php endif; ?>
     <form id="expenseForm" class="add-expense-form" action="add_expenses" method="POST" enctype="multipart/form-data">
         <div class="row">

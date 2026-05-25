@@ -1,10 +1,27 @@
 <?php include("header.php"); ?>
 
 <?php
+$message = '';
+$message_type = '';
+
 // Handle delete expense request
 if (isset($_POST['delete_expense'])) {
-    $expense_id = $_POST['expense_id'];
-    $conn->query("DELETE FROM expenses WHERE id = $expense_id");
+    $expense_id = isset($_POST['expense_id']) ? (int) $_POST['expense_id'] : 0;
+    if ($expense_id > 0) {
+        $stmt = $conn->prepare("DELETE FROM expenses WHERE id = ? AND employee_id = ? LIMIT 1");
+        $stmt->bind_param("ii", $expense_id, $employee_id);
+        $stmt->execute();
+        if ($stmt->affected_rows > 0) {
+            $message = 'Expense deleted successfully!';
+            $message_type = 'success';
+        } else {
+            $message = 'Expense not found or already deleted.';
+            $message_type = 'error';
+        }
+    } else {
+        $message = 'Invalid expense selected for deletion.';
+        $message_type = 'error';
+    }
 }
 
 // Handle update expense request
@@ -39,8 +56,12 @@ if (isset($_POST['update_expense'])) {
 
 // Handle delete document request
 if (isset($_POST['delete_document'])) {
-    $document_id = $_POST['document_id'];
-    $conn->query("DELETE FROM expense_documents WHERE id = $document_id");
+    $document_id = isset($_POST['document_id']) ? (int) $_POST['document_id'] : 0;
+    if ($document_id > 0) {
+        $stmt = $conn->prepare("DELETE FROM expense_documents WHERE id = ? LIMIT 1");
+        $stmt->bind_param("i", $document_id);
+        $stmt->execute();
+    }
 }
 
 
@@ -140,6 +161,26 @@ $expenses  = $stmt->get_result();
         letter-spacing: 0.06em;
         text-transform: uppercase;
         box-shadow: none;
+    }
+
+    .manage-expenses-alert {
+        margin: 1rem 1.1rem 0;
+        padding: 0.95rem 1.05rem;
+        border-radius: 16px;
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+
+    .manage-expenses-alert-success {
+        border: 1px solid #86efac;
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .manage-expenses-alert-error {
+        border: 1px solid #fecaca;
+        background: #fee2e2;
+        color: #991b1b;
     }
 
     .manage-expenses-wrap {
@@ -409,6 +450,9 @@ $expenses  = $stmt->get_result();
         <div class="col-12">
             <div class="card mb-4 manage-expenses-card">
                 <div class="card-body px-0 pt-0 pb-2 manage-expenses-shell">
+                    <?php if ($message !== '') : ?>
+                        <div class="manage-expenses-alert manage-expenses-alert-<?= htmlspecialchars($message_type) ?>"><?= htmlspecialchars($message) ?></div>
+                    <?php endif; ?>
                     <div class="table-responsive p-0 manage-expenses-wrap">
                         <form method="GET" class="mb-3 mt-4 manage-expenses-search">
                             <div class="row">

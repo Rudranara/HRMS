@@ -1,9 +1,27 @@
 <?php include("header.php"); ?>
 <?php
+$message = '';
+$message_type = '';
+
 // Handle delete expense request
 if (isset($_POST['delete_expense'])) {
-    $expense_id = $_POST['expense_id'];
-    $conn->query("DELETE FROM expenses WHERE id = $expense_id");
+    $expense_id = isset($_POST['expense_id']) ? (int) $_POST['expense_id'] : 0;
+    if ($expense_id > 0) {
+        $stmt = $conn->prepare("DELETE FROM expenses WHERE id = ? LIMIT 1");
+        $stmt->bind_param("i", $expense_id);
+        $stmt->execute();
+
+        if ($stmt->affected_rows > 0) {
+            $message = 'Expense deleted successfully!';
+            $message_type = 'success';
+        } else {
+            $message = 'Expense not found or already deleted.';
+            $message_type = 'error';
+        }
+    } else {
+        $message = 'Invalid expense selected for deletion.';
+        $message_type = 'error';
+    }
 }
 
 // Handle update expense request
@@ -118,6 +136,11 @@ if ($total_pages <= 7) {
 
     <div class="row">
         <div class="col-12">
+            <?php if ($message !== ''): ?>
+                <div class="expense-alert expense-alert-<?= htmlspecialchars($message_type) ?>">
+                    <?= htmlspecialchars($message) ?>
+                </div>
+            <?php endif; ?>
             <!-- Filter Card -->
             <div class="expense-filter-card mb-4">
                 <form method="GET" class="expense-filter-form">
@@ -425,6 +448,26 @@ if ($total_pages <= 7) {
         border-radius: 24px;
         padding: 20px 24px;
         box-shadow: 0 2px 8px rgba(15, 23, 42, 0.07);
+    }
+
+    .expense-alert {
+        margin-bottom: 16px;
+        padding: 14px 18px;
+        border-radius: 16px;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .expense-alert-success {
+        border: 1px solid #86efac;
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .expense-alert-error {
+        border: 1px solid #fecaca;
+        background: #fee2e2;
+        color: #991b1b;
     }
 
     .expense-filter-form {

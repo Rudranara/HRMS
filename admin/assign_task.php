@@ -6,7 +6,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $description = $_POST['description'];
     $due_date = $_POST['due_date'];
     $remark = $_POST['remark'];
-    $upload_dir = "../uploads/tasks/";
+    $upload_dir = __DIR__ . "/../uploads/tasks/";
+    $upload_path_for_db = "../uploads/tasks/";
+
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
 
     // Insert task into the database
     $stmt = $conn->prepare("INSERT INTO tasks (employee_id, title, description, due_date, remark) VALUES (?, ?, ?, ?, ?)");
@@ -17,11 +22,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Handle multiple file uploads
         if (!empty($_FILES['documents']['name'][0])) {
             foreach ($_FILES['documents']['name'] as $key => $filename) {
-                $target_file = $upload_dir . basename($filename);
+                $original_name = basename($filename);
+                $file_extension = pathinfo($original_name, PATHINFO_EXTENSION);
+                $file_name = pathinfo($original_name, PATHINFO_FILENAME);
+                $safe_name = preg_replace('/[^A-Za-z0-9_-]/', '-', $file_name);
+                $safe_name = trim($safe_name, '-');
+                $safe_name = $safe_name !== '' ? $safe_name : 'task-document';
+                $stored_file_name = uniqid($safe_name . '-', true) . ($file_extension !== '' ? '.' . $file_extension : '');
+                $target_file = $upload_dir . $stored_file_name;
+
                 if (move_uploaded_file($_FILES['documents']['tmp_name'][$key], $target_file)) {
+                    $document_path = $upload_path_for_db . $stored_file_name;
                     // Insert document record into the database
                     $stmt = $conn->prepare("INSERT INTO task_documents (task_id, file_path) VALUES (?, ?)");
-                    $stmt->bind_param("is", $task_id, $target_file);
+                    $stmt->bind_param("is", $task_id, $document_path);
                     $stmt->execute();
                 }
             }
