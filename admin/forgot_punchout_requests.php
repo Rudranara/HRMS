@@ -490,12 +490,12 @@ $result = $stmt->get_result();
 
                                         <td>
                                             <div class="forgot-punchout-actions">
-                                            <a href="approve_forgot_punchout?id=<?= $row['id'] ?>&action=present"
+                                            <a href="approve_forgot_punchout?id=<?= $row['id'] ?>&action=present&month=<?= urlencode($selected_month) ?>&year=<?= urlencode($selected_year) ?>&name=<?= urlencode($selected_employee_id) ?>"
                                                class="btn btn-success btn-sm forgot-punchout-action-btn">
                                                 Mark Present
                                             </a>
 
-                                            <a href="approve_forgot_punchout?id=<?= $row['id'] ?>&action=absent"
+                                            <a href="approve_forgot_punchout?id=<?= $row['id'] ?>&action=absent&month=<?= urlencode($selected_month) ?>&year=<?= urlencode($selected_year) ?>&name=<?= urlencode($selected_employee_id) ?>"
                                                class="btn btn-danger btn-sm forgot-punchout-action-btn"
                                                onclick="return confirm('Mark this employee Absent?')">
                                                 Mark Absent

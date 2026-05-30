@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     );
 
     if ($update_stmt->execute()) {
-        echo "<script>alert('Attendance record updated successfully!'); window.location.href = 'manage_attendance';</script>";
+        echo "<script>alert('Attendance record updated successfully!'); window.location.href = 'attendance_record';</script>";
     } else {
         echo "Error updating record: " . $update_stmt->error;
     }

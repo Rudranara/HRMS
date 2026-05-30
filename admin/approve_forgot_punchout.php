@@ -48,5 +48,13 @@ if ($action === 'present') {
 $stmt->bind_param("i", $id);
 $stmt->execute();
 
-header("Location: forgot_punchout_requests?success=1");
+$redirect = "forgot_punchout_requests?success=1";
+$month = $_GET['month'] ?? '';
+$year  = $_GET['year']  ?? '';
+$name  = $_GET['name']  ?? '';
+if ($month !== '') $redirect .= "&month=" . urlencode($month);
+if ($year  !== '') $redirect .= "&year="  . urlencode($year);
+if ($name  !== '') $redirect .= "&name="  . urlencode($name);
+
+header("Location: $redirect");
 exit;
